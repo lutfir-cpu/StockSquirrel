@@ -1,5 +1,5 @@
 .ticker-analysis-page {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   text-align: left;
@@ -70,7 +70,7 @@
   color: #94a3b8;
 }
 
-button {
+.acorn-button {
   
   background: #f8fafc;
   border: 1px solid #e2e8f0;
