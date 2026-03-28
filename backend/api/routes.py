@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 import httpx
+import json
 
 from models.schemas import AnalyzeRequest, AnalyzeResponse
-from services.research_service import analyze_ticker
+from services.research_service import analyze_ticker, stream_ticker_analysis
 import time
 
 # Simple in-memory cache for the SEC tickers to avoid repeated slow requests
@@ -11,6 +13,10 @@ TICKERS_CACHE_TS = 0
 TICKERS_CACHE_TTL = 60 * 60  # 1 hour
 
 router = APIRouter()
+
+
+def _sse_event(event_type: str, data: dict) -> str:
+    return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
@@ -24,6 +30,32 @@ async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     except Exception as exc:
         print(f"Error occurred while analyzing {request.ticker}: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+
+@router.get("/analyze/stream")
+async def analyze_stream(ticker: str) -> StreamingResponse:
+    async def event_stream():
+        try:
+            async for event in stream_ticker_analysis(ticker):
+                event_type = str(event.get("type") or "status")
+                payload = {key: value for key, value in event.items() if key != "type"}
+                yield _sse_event(event_type, payload)
+        except ValueError as exc:
+            yield _sse_event("analysis_error", {"message": str(exc)})
+        except Exception as exc:
+            print(f"Error occurred while streaming analysis for {ticker}: {exc}")
+            yield _sse_event("analysis_error", {"message": "Internal server error"})
+        finally:
+            yield ": done\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.get("/tickers")
