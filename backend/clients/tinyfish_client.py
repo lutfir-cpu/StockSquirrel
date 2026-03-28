@@ -45,7 +45,7 @@ def _build_tinyfish_tasks(normalized_ticker: str) -> list[dict[str, str]]:
         {
             "url": TINYFISH_SEARCH_URL,
             "goal": (
-                f"Collect up to 1 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
+                f"Collect up to 6 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
                 "Return JSON with an 'evidence' array. Each item must have: title, source, and text. "
                 "Focus on company performance, price action, valuation, analyst opinions, recent news, and headlines. "
                 "Summarize the key drivers that seem to be influencing the stock, such as earnings projections, recent announcements, "
