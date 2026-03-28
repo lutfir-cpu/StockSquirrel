@@ -9,9 +9,10 @@ router = APIRouter()
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     try:
-        result = await analyze_ticker(request.ticker)
+        result = await analyze_ticker(request.ticker, request.evidence)
         return AnalyzeResponse(**result)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        print(f"Error occurred while analyzing {request.ticker}: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error") from exc

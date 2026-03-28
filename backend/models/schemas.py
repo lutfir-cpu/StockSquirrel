@@ -1,14 +1,15 @@
 from pydantic import BaseModel, Field
 
 
-class AnalyzeRequest(BaseModel):
-    ticker: str = Field(..., min_length=1, description="Stock ticker symbol")
-
-
 class EvidenceItem(BaseModel):
     title: str
     url: str
     text: str
+
+
+class AnalyzeRequest(BaseModel):
+    ticker: str = Field(..., min_length=1, description="Stock ticker symbol")
+    evidence: list[EvidenceItem] = Field(default_factory=list)
 
 
 class AnalyzeResponse(BaseModel):
