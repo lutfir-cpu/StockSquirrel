@@ -57,11 +57,13 @@ function TickerAnalysis() {
         const payload = JSON.parse(event.data);
         setAnalysis(payload.analysis || null);
         setStatusMessage("Analysis complete.");
+        setPreviewUrl("");
         setLoading(false);
         closeEventSource();
       } catch (err) {
         console.error("Error parsing analysis event:", err);
         setError("Failed to parse analysis response.");
+        setPreviewUrl("");
         setLoading(false);
         closeEventSource();
       }
@@ -74,6 +76,7 @@ function TickerAnalysis() {
       } catch {
         setError("Failed to analyze.");
       }
+      setPreviewUrl("");
       setLoading(false);
       closeEventSource();
     });
@@ -81,6 +84,7 @@ function TickerAnalysis() {
     stream.onerror = () => {
       if (eventSourceRef.current) {
         setError("The live analysis stream was interrupted.");
+        setPreviewUrl("");
         setLoading(false);
         closeEventSource();
       }
@@ -188,7 +192,6 @@ function TickerAnalysis() {
         <div className="loading-state">
           <img src="/pinksquirrel.svg" className="bouncing-squirrel" />
           <p>Foraging information ...</p>
-          <p>{statusMessage}</p>
         </div>
       )}
 

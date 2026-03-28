@@ -12,6 +12,7 @@ TINYFISH_FALLBACK_URL = "https://agent.tinyfish.ai"
 TINYFISH_SEARCH_URL = "https://duckduckgo.com/"
 TINYFISH_TIMEOUT_SECONDS = 300.0
 TINYFISH_POLL_INTERVAL_SECONDS = 2.0
+TINYFISH_RUN_LOOKUP_RETRIES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def _build_tinyfish_tasks(normalized_ticker: str) -> list[dict[str, str]]:
         {
             "url": TINYFISH_SEARCH_URL,
             "goal": (
-                f"Collect up to 6 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
+                f"Collect up to 1 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
                 "Return JSON with an 'evidence' array. Each item must have: title, source, and text. "
                 "Focus on company performance, price action, valuation, analyst opinions, recent news, and headlines. "
                 "Summarize the key drivers that seem to be influencing the stock, such as earnings projections, recent announcements, "
@@ -209,16 +210,33 @@ async def _start_tinyfish_run(url: str, goal: str, api_key: str) -> str:
 
 
 async def _get_tinyfish_run(run_id: str, api_key: str) -> dict[str, Any]:
-    async with httpx.AsyncClient(timeout=TINYFISH_TIMEOUT_SECONDS) as client:
-        response = await client.get(
-            f"{TINYFISH_RUNS_URL}/{run_id}",
-            headers=_tinyfish_headers(api_key),
+    last_status_code: int | None = None
+
+    for attempt in range(1, TINYFISH_RUN_LOOKUP_RETRIES + 1):
+        async with httpx.AsyncClient(timeout=TINYFISH_TIMEOUT_SECONDS) as client:
+            response = await client.get(
+                f"{TINYFISH_RUNS_URL}/{run_id}",
+                headers=_tinyfish_headers(api_key),
+            )
+
+        if not response.is_error:
+            return response.json()
+
+        last_status_code = response.status_code
+        if response.status_code not in {502, 503, 504}:
+            raise RuntimeError(f"TinyFish run lookup failed with HTTP {response.status_code}")
+
+        logger.warning(
+            "TinyFish run lookup for %s failed with HTTP %s (attempt %s/%s).",
+            run_id,
+            response.status_code,
+            attempt,
+            TINYFISH_RUN_LOOKUP_RETRIES,
         )
+        if attempt < TINYFISH_RUN_LOOKUP_RETRIES:
+            await asyncio.sleep(TINYFISH_POLL_INTERVAL_SECONDS)
 
-    if response.is_error:
-        raise RuntimeError(f"TinyFish run lookup failed with HTTP {response.status_code}")
-
-    return response.json()
+    raise RuntimeError(f"TinyFish run lookup failed with HTTP {last_status_code}")
 
 
 async def stream_ticker_evidence(ticker: str):
