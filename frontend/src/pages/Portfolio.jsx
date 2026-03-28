@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import AnalysisCard from "../components/AnalysisCard";
 import "./Portfolio.css";
 
 function Portfolio() {
@@ -139,13 +140,7 @@ function Portfolio() {
           {!loading && results.length > 0 && (
             <div className="insights-list">
               {results.map((res, i) => (
-                <div key={i} className="insight-card">
-                  <div className="insight-header">
-                    <h4>{res.ticker}</h4>
-                    <span className="badge">{res.signal.toUpperCase()}</span>
-                  </div>
-                  <p>{res.summary}</p>
-                </div>
+                <AnalysisCard key={`${res.ticker}-${i}`} analysis={res} compact />
               ))}
             </div>
           )}
@@ -155,7 +150,7 @@ function Portfolio() {
       {/* Action Buttons */}
       <div className="actions-grid">
         <button className="action-button" onClick={addRow}>
-          <span>Add Stocks</span>
+          Add Stocks
         </button>
 
         <button className="action-button" onClick={analyzeAll} disabled={loading || holdings.length === 0}>

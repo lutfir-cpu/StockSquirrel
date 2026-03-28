@@ -183,24 +183,6 @@
   gap: 16px;
 }
 
-.insight-card {
-  padding: 16px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-.insight-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.insight-header h4 {
-  margin: 0;
-  color: #0f172a;
-}
-
 /* actions grid */
 .actions-grid {
   display: grid;
@@ -229,7 +211,7 @@
   gap: 16px;
   padding: 20px 24px;
   border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e8e2f0;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;

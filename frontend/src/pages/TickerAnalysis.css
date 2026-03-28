@@ -138,5 +138,13 @@
 }
 
 .analysis-result {
-    color:#0f172a;
+  color: #0f172a;
+}
+
+.error {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
 }
