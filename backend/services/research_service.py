@@ -1,5 +1,5 @@
 from clients.openai_client import analyze_evidence
-# from clients.tinyfish_client import gather_ticker_evidence
+from clients.tinyfish_client import gather_ticker_evidence
 
 
 async def analyze_ticker(ticker: str, evidence: list | None = None) -> dict:
@@ -8,8 +8,9 @@ async def analyze_ticker(ticker: str, evidence: list | None = None) -> dict:
         item.model_dump() if hasattr(item, "model_dump") else item
         for item in (evidence or [])
     ]
-    # gathered_evidence = await gather_ticker_evidence(normalized_ticker)
-    evidence_items = provided_evidence
+    gathered_evidence = await gather_ticker_evidence(normalized_ticker)
+    print("Gathered evidence")
+    evidence_items = provided_evidence + gathered_evidence
     analysis = await analyze_evidence(normalized_ticker, evidence_items)
 
     return {

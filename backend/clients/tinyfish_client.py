@@ -1,13 +1,52 @@
+import logging
 from typing import Any
 
 import httpx
 
 
 TINYFISH_RUN_URL = "https://agent.tinyfish.ai/v1/automation/run"
+TINYFISH_FALLBACK_URL = "https://agent.tinyfish.ai"
+TINYFISH_SEARCH_URL = "https://duckduckgo.com/"
+TINYFISH_TIMEOUT_SECONDS = 300.0
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_summary_items(payload: dict[str, Any], fallback_url: str) -> list[dict[str, str]]:
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        return []
+
+    normalized: list[dict[str, str]] = []
+    for section_name in ("key_drivers", "risks"):
+        section_items = summary.get(section_name)
+        if not isinstance(section_items, list):
+            continue
+
+        label = section_name.replace("_", " ").title()
+        for item in section_items:
+            if not isinstance(item, dict):
+                continue
+
+            title = str(item.get("name") or label).strip() or label
+            text = str(item.get("description") or "").strip()
+            if not text:
+                continue
+
+            normalized.append(
+                {
+                    "title": f"{label}: {title}",
+                    "url": fallback_url,
+                    "text": text,
+                }
+            )
+
+    return normalized
 
 
 def _normalize_evidence_items(payload: Any, fallback_url: str) -> list[dict[str, str]]:
     if isinstance(payload, dict):
+        normalized = _normalize_summary_items(payload, fallback_url)
         if isinstance(payload.get("evidence"), list):
             candidates = payload["evidence"]
         elif isinstance(payload.get("items"), list):
@@ -15,17 +54,24 @@ def _normalize_evidence_items(payload: Any, fallback_url: str) -> list[dict[str,
         else:
             candidates = [payload]
     elif isinstance(payload, list):
+        normalized = []
         candidates = payload
     else:
+        normalized = []
         candidates = []
 
-    normalized: list[dict[str, str]] = []
+    existing = {
+        (item["title"].strip().lower(), item["text"].strip().lower()) for item in normalized
+    }
+
     for item in candidates:
         if not isinstance(item, dict):
             continue
 
         title = str(item.get("title") or item.get("headline") or item.get("name") or "").strip()
-        url = str(item.get("url") or item.get("link") or fallback_url).strip() or fallback_url
+        url = str(
+            item.get("url") or item.get("link") or item.get("source") or fallback_url
+        ).strip() or fallback_url
         text = str(
             item.get("text")
             or item.get("summary")
@@ -37,41 +83,71 @@ def _normalize_evidence_items(payload: Any, fallback_url: str) -> list[dict[str,
         if not title and not text:
             continue
 
-        normalized.append(
-            {
-                "title": title or "Untitled evidence",
-                "url": url,
-                "text": text or title or "No additional detail provided.",
-            }
+        normalized_item = {
+            "title": title or "Untitled evidence",
+            "url": url,
+            "text": text or title or "No additional detail provided.",
+        }
+        key = (
+            normalized_item["title"].strip().lower(),
+            normalized_item["text"].strip().lower(),
         )
+        if key in existing:
+            continue
+        existing.add(key)
+        normalized.append(normalized_item)
 
     return normalized
 
 
 async def _run_tinyfish(url: str, goal: str, api_key: str) -> list[dict[str, str]]:
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            TINYFISH_RUN_URL,
-            headers={
-                "Content-Type": "application/json",
-                "X-API-Key": api_key,
-            },
-            json={
-                "url": url,
-                "goal": goal,
-                "browser_profile": "lite",
-                "api_integration": "stocksquirrel",
-            },
-        )
+    try:
+        async with httpx.AsyncClient(timeout=TINYFISH_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                TINYFISH_RUN_URL,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-API-Key": api_key,
+                },
+                json={
+                    "url": url,
+                    "goal": goal,
+                    "browser_profile": "lite",
+                    "api_integration": "stocksquirrel",
+                },
+            )
+    except httpx.ReadTimeout as exc:
+        raise RuntimeError(
+            f"TinyFish request timed out after {int(TINYFISH_TIMEOUT_SECONDS)} seconds"
+        ) from exc
 
-    response.raise_for_status()
+    if response.is_error:
+        raise RuntimeError(f"TinyFish request failed with HTTP {response.status_code}")
+
     payload = response.json()
 
     if payload.get("status") != "COMPLETED":
         error = payload.get("error") or {"message": "TinyFish run did not complete successfully."}
         raise RuntimeError(str(error.get("message") or error))
 
-    return _normalize_evidence_items(payload.get("result"), fallback_url=url)
+    result = payload.get("result") or payload.get("resultJson")
+    if not result:
+        logger.warning("TinyFish completed for %s but returned no result.", url)
+        return []
+
+    if isinstance(result, dict) and (result.get("status") == "failure" or result.get("error")):
+        raise RuntimeError(
+            str(result.get("reason") or result.get("error") or "TinyFish goal not achieved")
+        )
+
+    normalized_items = _normalize_evidence_items(result, fallback_url=url)
+    if not normalized_items:
+        logger.warning(
+            "TinyFish completed for %s but returned no normalized evidence.",
+            url,
+        )
+
+    return normalized_items
 
 
 async def gather_ticker_evidence(ticker: str) -> list[dict[str, str]]:
@@ -90,43 +166,58 @@ async def gather_ticker_evidence(ticker: str) -> list[dict[str, str]]:
     normalized_ticker = ticker.strip().upper()
     tasks = [
         {
-            "url": f"https://finance.yahoo.com/quote/{normalized_ticker}",
+            "url": TINYFISH_SEARCH_URL,
             "goal": (
-                f"Collect up to 3 evidence items about the stock ticker {normalized_ticker} from this page. "
-                "Return JSON with an 'evidence' array. Each item must have: title, url, text. "
-                "Focus on visible company details, price action, valuation data, analyst snippets, or headlines."
-            ),
-        },
-        {
-            "url": f"https://finance.yahoo.com/quote/{normalized_ticker}/news",
-            "goal": (
-                f"Collect up to 5 recent news evidence items relevant to stock ticker {normalized_ticker}. "
-                "Return JSON with an 'evidence' array. Each item must have: title, url, text. "
-                "Use the article link if visible. Keep text to one or two sentences on why the item matters."
+                f"Collect up to 3 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
+                "Return JSON with an 'evidence' array. Each item must have: title, source, and text. "
+                "Focus on company performance, price action, valuation, analyst opinions, recent news, and headlines. "
+                "Summarize the key drivers that seem to be influencing the stock, such as earnings projections, recent announcements, "
+                "market sentiment, or external factors like regulations or competition. "
+                "Also, note any risks or challenges mentioned, such as economic conditions, potential volatility, or industry competition. "
+                "Use this exact shape: "
+                '{"summary":{"key_drivers":[{"name":"string","description":"string"}],"risks":[{"name":"string","description":"string"}]},"evidence":[{"title":"string","source":"string","text":"string"}]}. '
+                "Focus on company performance, valuation, analyst views, recent news, key drivers, and risks. "
+                " Do not return markdown, prose, or code fences."
             ),
         },
     ]
 
     evidence: list[dict[str, str]] = []
-    for task in tasks:
+    for index, task in enumerate(tasks, start=1):
         try:
-            evidence.extend(
-                await _run_tinyfish(
-                    url=task["url"],
-                    goal=task["goal"],
-                    api_key=settings.tinyfish_api_key,
-                )
+            task_evidence = await _run_tinyfish(
+                url=task["url"],
+                goal=task["goal"],
+                api_key=settings.tinyfish_api_key,
             )
-        except Exception:
+            logger.info(
+                "TinyFish task %s for %s returned %s items.",
+                index,
+                normalized_ticker,
+                len(task_evidence),
+            )
+            evidence.extend(task_evidence)
+        except Exception as exc:
+            logger.error(
+                "TinyFish task %s for %s failed: %s: %r",
+                index,
+                normalized_ticker,
+                type(exc).__name__,
+                exc,
+            )
             continue
 
     deduped: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
     for item in evidence:
-        key = (item["title"], item["url"])
+        key = (item["title"].strip().lower(), item["text"].strip().lower())
         if key in seen:
             continue
         seen.add(key)
         deduped.append(item)
+
+    print(f"Gathered evidence for {normalized_ticker}: {len(deduped)} items")
+    if deduped:
+        print(f"First evidence item for {normalized_ticker}: {deduped[0]}")
 
     return deduped

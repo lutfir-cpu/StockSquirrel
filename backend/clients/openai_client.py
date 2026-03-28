@@ -71,8 +71,16 @@ async def analyze_evidence(ticker: str, evidence: list[dict[str, Any]]) -> dict[
             ]
         )
         user_prompt = (
-            f"Analyze the ticker {normalized_ticker} using the evidence below.\n\n"
-            f"{evidence_text}"
+            f"Analyze the stock ticker {normalized_ticker} using the following evidence:\n\n"
+            f"{evidence_text}\n\n"
+            "Based on the provided evidence, please provide a qualitative and well-rounded analysis of the stock's performance. "
+            "Include the following elements in your response:\n\n"
+            "1. **Signal**: What is the overall outlook for this stock? Is it positive, neutral, or negative? Provide a clear answer.\n"
+            "2. **Recommendation**: Should investors consider buying, holding, or selling the stock? Justify your recommendation based on the evidence.\n"
+            "3. **Summary**: Provide a concise summary of the most important points from the evidence—what is driving the stock's performance?"
+            "4. **Key Drivers**: List the key factors (e.g., earnings growth, market sentiment, competitive positioning, etc.) influencing this stock's outlook.\n"
+            "5. **Risks**: What risks or challenges does the stock face (e.g., economic conditions, regulatory issues, market volatility)?\n"
+            "6. **Confidence**: How confident are you in this analysis? Provide a score (0 to 1, where 1 is fully confident)."
         )
     else:
         user_prompt = (
@@ -80,7 +88,7 @@ async def analyze_evidence(ticker: str, evidence: list[dict[str, Any]]) -> dict[
             "Provide a concise general stock summary anyway based on your knowledge, "
             "and make clear that it is a general overview rather than evidence-backed research."
         )
-
+    print("Analysing using OpenAI...")
     response = await client.chat.completions.create(
         model="gpt-5.4",
         temperature=0.2,
