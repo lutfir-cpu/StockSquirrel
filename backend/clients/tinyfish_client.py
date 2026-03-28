@@ -12,41 +12,9 @@ TINYFISH_TIMEOUT_SECONDS = 300.0
 logger = logging.getLogger(__name__)
 
 
-def _normalize_summary_items(payload: dict[str, Any], fallback_url: str) -> list[dict[str, str]]:
-    summary = payload.get("summary")
-    if not isinstance(summary, dict):
-        return []
-
-    normalized: list[dict[str, str]] = []
-    for section_name in ("key_drivers", "risks"):
-        section_items = summary.get(section_name)
-        if not isinstance(section_items, list):
-            continue
-
-        label = section_name.replace("_", " ").title()
-        for item in section_items:
-            if not isinstance(item, dict):
-                continue
-
-            title = str(item.get("name") or label).strip() or label
-            text = str(item.get("description") or "").strip()
-            if not text:
-                continue
-
-            normalized.append(
-                {
-                    "title": f"{label}: {title}",
-                    "url": fallback_url,
-                    "text": text,
-                }
-            )
-
-    return normalized
-
-
 def _normalize_evidence_items(payload: Any, fallback_url: str) -> list[dict[str, str]]:
     if isinstance(payload, dict):
-        normalized = _normalize_summary_items(payload, fallback_url)
+        normalized = []
         if isinstance(payload.get("evidence"), list):
             candidates = payload["evidence"]
         elif isinstance(payload.get("items"), list):
@@ -168,16 +136,17 @@ async def gather_ticker_evidence(ticker: str) -> list[dict[str, str]]:
         {
             "url": TINYFISH_SEARCH_URL,
             "goal": (
-                f"Collect up to 3 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
+                f"Collect up to 6 relevant latest news or evidence items about stock ticker {normalized_ticker}. "
                 "Return JSON with an 'evidence' array. Each item must have: title, source, and text. "
                 "Focus on company performance, price action, valuation, analyst opinions, recent news, and headlines. "
                 "Summarize the key drivers that seem to be influencing the stock, such as earnings projections, recent announcements, "
                 "market sentiment, or external factors like regulations or competition. "
                 "Also, note any risks or challenges mentioned, such as economic conditions, potential volatility, or industry competition. "
+                "Make sure the 'source' field captures the full url where the information is coming from. If it is from the url https://duckduckgo.com/, do not return as a source url."
                 "Use this exact shape: "
                 '{"summary":{"key_drivers":[{"name":"string","description":"string"}],"risks":[{"name":"string","description":"string"}]},"evidence":[{"title":"string","source":"string","text":"string"}]}. '
                 "Focus on company performance, valuation, analyst views, recent news, key drivers, and risks. "
-                " Do not return markdown, prose, or code fences."
+                "Do not return markdown, prose, or code fences."
             ),
         },
     ]

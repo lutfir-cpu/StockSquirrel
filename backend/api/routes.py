@@ -9,6 +9,7 @@ router = APIRouter()
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     try:
+        print(f"Received analysis request for {request.ticker} with {len(request.evidence)} evidence items.")
         result = await analyze_ticker(request.ticker, request.evidence)
         return AnalyzeResponse(**result)
     except ValueError as exc:
