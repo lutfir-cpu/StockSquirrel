@@ -164,7 +164,10 @@ function TickerAnalysis() {
     <div className="ticker-analysis-page">
       <div className="page-header">
         <h2>Ticker Analysis</h2>
-        <p>Enter a stock ticker to get detailed analysis.</p>
+        <p>
+          Get a well-rounded, qualitative stock analysis using real-time evidence and
+          insights gathered from the web.
+        </p>
       </div>
 
       <div className="search-wrapper">
@@ -177,7 +180,7 @@ function TickerAnalysis() {
           <input
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            placeholder={tickersLoading ? "Loading tickers..." : "Search for a stock ticker"} // NEW: feedback while loading
+            placeholder={tickersLoading ? "Loading tickers..." : "Dont be shy... Search for a stock ticker!"} // NEW: feedback while loading
             disabled={tickersLoading} // NEW: prevent input until tickers are ready
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
           />
