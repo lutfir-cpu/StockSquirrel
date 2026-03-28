@@ -1,0 +1,142 @@
+.ticker-analysis-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: left;
+}
+
+/* header */
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 32px;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.page-header p {
+  color: #64748b;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* search bar*/
+.search-wrapper {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 40px;
+  align-items: center;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #94a3b8;
+}
+
+.search-container input {
+  width: 100%;
+  padding: 16px 16px 16px 48px; /* Extra padding on left for the icon */
+  font-size: 16px;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+.search-container input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-container input::placeholder {
+  color: #94a3b8;
+}
+
+.acorn-button {
+  
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.acorn-button:hover:not(:disabled) {
+  background-color: #eff6ff;
+  border-color: #5a3bf6;
+  transform: scale(1.1);
+}
+
+.acorn-button:disabled {
+  opacity: 0.6;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+.acorn-button {
+  line-height: 1;
+}
+
+/*  SQUIRREL LOADING ANIMATION  */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: #64748b;
+}
+
+.bouncing-squirrel {
+  width: 32px;
+  height: auto;
+  margin-bottom: 20px;
+  animation: squirrelBounce 1s infinite alternate cubic-bezier(0.5, 0.05, 1, 0.5);
+}
+
+@keyframes squirrelBounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-20px);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.analysis-result {
+    color:#0f172a;
+}

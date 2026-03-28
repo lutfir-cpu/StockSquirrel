@@ -1,50 +1,46 @@
-import { useState } from "react";
-import axios from "axios";
+import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import TickerAnalysis from "./pages/tickeranalysis";
+import Portfolio from "./pages/portfolio";
 import "./App.css";
 
 function App() {
-  const [ticker, setTicker] = useState("");
-  const [analysis, setAnalysis] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function analyze() {
-    setAnalysis(null);
-    setError(null);
-    setLoading(true);
-
-    try {
-      const response = await axios.post("/analyze", { ticker });
-      setAnalysis(response.data);
-    } catch (err) {
-      console.error("Error analyzing stock:", err);
-      setError("Failed to analyze.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  
   return (
-    <>
-      <h1> StockSquirrel </h1>
+    <BrowserRouter>
 
-      <input
-        value={ticker}
-        onChange={(e) => setTicker(e.target.value)}
-        placeholder="ticker"
-      />
+    <header className="top-nav">
 
-      <button onClick={analyze} disabled={loading}>
-        {loading ? "Analyzing..." : "Analyze"}
-      </button>
+      <div className="logo">
+        <img src="/pinksquirrel.svg" className="logo-icon" />
+        <span className="logo-text">StockSquirrel</span>
+      </div>
 
-      {error && <div className="error">{error}</div>}
+      <nav className="tabs">
+          <NavLink 
+            to="/" 
+            className={({ isActive }) => (isActive ? "active" : "")}
+            end
+          >
+            Ticker Analysis
+          </NavLink>
+          
+          <NavLink 
+            to="/portfolio" 
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            Portfolio
+          </NavLink>
+      </nav>
+    </header>
 
-      {analysis && 
-          <pre>{JSON.stringify(analysis, null, 2)}</pre>
-       
-      }
-    </>
+    <div className="content">
+      <Routes>
+        <Route path="/" element={<TickerAnalysis />} />
+        <Route path="/portfolio" element={<Portfolio />} />
+      </Routes>
+    </div>
+
+    </BrowserRouter>
   );
 }
 
