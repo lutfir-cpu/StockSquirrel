@@ -57,6 +57,11 @@ async def analyze_evidence(ticker: str, evidence: list[dict[str, Any]]) -> dict[
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     normalized_ticker = ticker.strip().upper()
 
+    json_shape = (
+        '{"signal":"unknown","recommendation":"Summary Only","summary":"string",'
+        '"key_drivers":["string"],"risks":["string"],"confidence":0.0}'
+    )
+
     if evidence:
         evidence_text = "\n\n".join(
             [
@@ -70,24 +75,30 @@ async def analyze_evidence(ticker: str, evidence: list[dict[str, Any]]) -> dict[
                 for item in evidence
             ]
         )
+        print(evidence_text)
         user_prompt = (
             f"Analyze the stock ticker {normalized_ticker} using the following evidence:\n\n"
             f"{evidence_text}\n\n"
-            "Based on the provided evidence, please provide a qualitative and well-rounded analysis of the stock's performance. "
-            "Include the following elements in your response:\n\n"
-            "1. **Signal**: What is the overall outlook for this stock? Is it positive, neutral, or negative? Provide a clear answer.\n"
-            "2. **Recommendation**: Should investors consider buying, holding, or selling the stock? Justify your recommendation based on the evidence.\n"
-            "3. **Summary**: Provide a concise summary of the most important points from the evidence—what is driving the stock's performance?"
-            "4. **Key Drivers**: List the key factors (e.g., earnings growth, market sentiment, competitive positioning, etc.) influencing this stock's outlook.\n"
-            "5. **Risks**: What risks or challenges does the stock face (e.g., economic conditions, regulatory issues, market volatility)?\n"
-            "6. **Confidence**: How confident are you in this analysis? Provide a score (0 to 1, where 1 is fully confident)."
+            "Return only valid JSON with exactly these keys: "
+            f"{json_shape}. "
+            "Set signal to one of positive, neutral, negative, or unknown. "
+            "Set recommendation to a short label such as Buy, Hold, Sell, or Summary Only. "
+            "Keep summary concise. "
+            "Make key_drivers a list of short strings. "
+            "Make risks a list of short strings. "
+            "Make confidence a number between 0 and 1. "
+            "Do not return markdown, prose outside JSON, or code fences."
         )
     else:
         user_prompt = (
             f"No evidence was supplied for ticker {normalized_ticker}. "
             "Provide a concise general stock summary anyway based on your knowledge, "
-            "and make clear that it is a general overview rather than evidence-backed research."
+            "and make clear that it is a general overview rather than evidence-backed research. "
+            "Return only valid JSON with exactly these keys: "
+            f"{json_shape}. "
+            "Do not return markdown, prose outside JSON, or code fences."
         )
+
     print("Analysing using OpenAI...")
     response = await client.chat.completions.create(
         model="gpt-5.4",
@@ -99,7 +110,8 @@ async def analyze_evidence(ticker: str, evidence: list[dict[str, Any]]) -> dict[
                     "You are a careful stock research assistant. "
                     "When evidence is provided, use it. "
                     "When evidence is not provided, still provide a concise general stock summary. "
-                    "Keep the answer practical and brief."
+                    "Keep the answer practical and brief. "
+                    "Always return valid JSON only."
                 ),
             },
             {
