@@ -28,7 +28,7 @@ source venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install fastapi uvicorn openai pydantic-settings python-dotenv
+pip install fastapi uvicorn openai pydantic-settings python-dotenv httpx
 ```
 
 ### 4. Set up environment variables
