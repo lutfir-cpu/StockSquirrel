@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import AnalysisCard from "../components/AnalysisCard";
 import "./TickerAnalysis.css";
@@ -9,22 +9,86 @@ function TickerAnalysis() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [validTickers, setValidTickers] = useState(null);
-  const [tickersLoading, setTickersLoading] = useState(true); // NEW: track ticker list load state
+  const [tickersLoading, setTickersLoading] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const eventSourceRef = useRef(null);
 
-  async function analyze(tickerToAnalyze) { // accept ticker as param to avoid stale closure
+  function closeEventSource() {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  }
+
+  function analyze(tickerToAnalyze) {
+    closeEventSource();
     setAnalysis(null);
     setError(null);
     setLoading(true);
+    setPreviewUrl("");
+    setStatusMessage("Starting analysis...");
 
-    try {
-      const response = await axios.post("/analyze", { ticker: tickerToAnalyze });
-      setAnalysis(response.data);
-    } catch (err) {
-      console.error("Error analyzing stock:", err);
-      setError("Failed to analyze.");
-    } finally {
+    const stream = new EventSource(
+      `/analyze/stream?ticker=${encodeURIComponent(tickerToAnalyze)}`
+    );
+    eventSourceRef.current = stream;
+
+    stream.addEventListener("status", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        setStatusMessage(payload.message || "Gathering evidence...");
+      } catch (err) {
+        console.error("Error parsing status event:", err);
+      }
+    });
+
+    stream.addEventListener("preview_url", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        setPreviewUrl(payload.streaming_url || "");
+      } catch (err) {
+        console.error("Error parsing preview event:", err);
+      }
+    });
+
+    stream.addEventListener("analysis", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        setAnalysis(payload.analysis || null);
+        setStatusMessage("Analysis complete.");
+        setPreviewUrl("");
+        setLoading(false);
+        closeEventSource();
+      } catch (err) {
+        console.error("Error parsing analysis event:", err);
+        setError("Failed to parse analysis response.");
+        setPreviewUrl("");
+        setLoading(false);
+        closeEventSource();
+      }
+    });
+
+    stream.addEventListener("analysis_error", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        setError(payload.message || "Failed to analyze.");
+      } catch {
+        setError("Failed to analyze.");
+      }
+      setPreviewUrl("");
       setLoading(false);
-    }
+      closeEventSource();
+    });
+
+    stream.onerror = () => {
+      if (eventSourceRef.current) {
+        setError("The live analysis stream was interrupted.");
+        setPreviewUrl("");
+        setLoading(false);
+        closeEventSource();
+      }
+    };
   }
 
   function handleAnalyze() {
@@ -92,6 +156,7 @@ function TickerAnalysis() {
     loadTickers();
     return () => {
       cancelled = true;
+      closeEventSource();
     };
   }, []);
 
@@ -99,7 +164,10 @@ function TickerAnalysis() {
     <div className="ticker-analysis-page">
       <div className="page-header">
         <h2>Ticker Analysis</h2>
-        <p>Enter a stock ticker to get detailed analysis.</p>
+        <p>
+          Get a well-rounded, qualitative stock analysis using real-time evidence and
+          insights gathered from the web.
+        </p>
       </div>
 
       <div className="search-wrapper">
@@ -112,7 +180,7 @@ function TickerAnalysis() {
           <input
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            placeholder={tickersLoading ? "Loading tickers..." : "Search for a stock ticker"} // NEW: feedback while loading
+            placeholder={tickersLoading ? "Loading tickers..." : "Dont be shy... Search for a stock ticker!"} // NEW: feedback while loading
             disabled={tickersLoading} // NEW: prevent input until tickers are ready
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
           />
@@ -126,7 +194,27 @@ function TickerAnalysis() {
       {loading && (
         <div className="loading-state">
           <img src="/pinksquirrel.svg" className="bouncing-squirrel" />
-          <p>Foraging information...</p>
+          <p>Foraging information ...</p>
+        </div>
+      )}
+
+      {(loading || previewUrl) && (
+        <div className="preview-panel">
+          <div className="preview-header">
+            <h3>Live Browser Preview</h3>
+            <p>{previewUrl ? "TinyFish is browsing in real time." : "Waiting for live preview..."}</p>
+          </div>
+          <div className="preview-frame-shell">
+            {previewUrl ? (
+              <iframe
+                className="preview-frame"
+                src={previewUrl}
+                title="TinyFish live browser preview"
+              />
+            ) : (
+              <div className="preview-placeholder">Live preview will appear here in a few seconds.</div>
+            )}
+          </div>
         </div>
       )}
 
