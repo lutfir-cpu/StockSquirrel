@@ -1,0 +1,15 @@
+name: YAMLY DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sast:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+  sca:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
