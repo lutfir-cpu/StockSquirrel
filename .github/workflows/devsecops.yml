@@ -10,6 +10,9 @@ jobs:
   sast:
     name: Static Analysis
     runs-on: ubuntu-latest
+  dast:
+    name: Dynamic Analysis
+    runs-on: ubuntu-latest
   sca:
     name: Dependency Audit
     runs-on: ubuntu-latest
